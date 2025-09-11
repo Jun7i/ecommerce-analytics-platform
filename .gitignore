@@ -1,0 +1,18 @@
+# This file prevents sensitive data and unnecessary files from being uploaded to GitHub.
+
+# Ignore all .env files in the entire project
+**/.env
+
+# Ignore Node.js dependency folders
+**/node_modules/
+
+# Ignore Python virtual environment folders
+**/venv/
+**/__pycache__/
+
+# Ignore build output folders
+**/dist/
+**/build/
+
+# Ignore OS-specific files
+.DS_Store
