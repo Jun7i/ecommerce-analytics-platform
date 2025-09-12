@@ -13,14 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // --- Middleware ---
-// Enable CORS for all routes, allowing our frontend to connect
 app.use(cors());
-// Enable parsing of JSON bodies in requests
 app.use(express.json());
 
 // --- Database Connection ---
-// Create a PostgreSQL connection pool. A pool is more efficient
-// than creating a new client for every single query.
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -31,11 +27,6 @@ const pool = new Pool({
 
 // --- API Routes ---
 
-// A simple test route to make sure the server is alive
-app.get('/api/test', (req: Request, res: Response) => {
-    res.status(200).json({ message: "Server is running and connected!" });
-});
-
 /**
  * @route   GET /api/products
  * @desc    Get all products from the database
@@ -44,15 +35,69 @@ app.get('/api/test', (req: Request, res: Response) => {
 app.get('/api/products', async (req: Request, res: Response) => {
     console.log("Received request for /api/products");
     try {
-        const result = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
-        // The 'variants' column is stored as a JSON string, so we parse it.
-        const products = result.rows.map(p => ({
-            ...p,
-            variants: typeof p.variants === 'string' ? JSON.parse(p.variants) : p.variants
-        }));
-        res.status(200).json(products);
+        const result = await pool.query('SELECT id, title, vendor, status FROM products ORDER BY created_at DESC');
+        res.status(200).json(result.rows);
     } catch (error) {
-        console.error('Error executing query', error);
+        console.error('Error executing query for products', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// NEW: Endpoint to calculate and return key performance indicators (KPIs).
+/**
+ * @route   GET /api/kpis
+ * @desc    Get key performance indicators
+ * @access  Public
+ */
+app.get('/api/kpis', async (req: Request, res: Response) => {
+    console.log("Received request for /api/kpis");
+    try {
+        const totalSalesQuery = `SELECT SUM(total_price::numeric) AS total_sales FROM orders;`;
+        const totalOrdersQuery = `SELECT COUNT(*) AS total_orders FROM orders;`;
+        const newCustomersQuery = `SELECT COUNT(*) AS new_customers_past_30_days FROM customers WHERE created_at >= NOW() - INTERVAL '30 days';`;
+
+        // Execute all queries in parallel for efficiency
+        const [salesResult, ordersResult, customersResult] = await Promise.all([
+            pool.query(totalSalesQuery),
+            pool.query(totalOrdersQuery),
+            pool.query(newCustomersQuery)
+        ]);
+        
+        const kpis = {
+            total_sales: parseFloat(salesResult.rows[0].total_sales) || 0,
+            total_orders: parseInt(ordersResult.rows[0].total_orders) || 0,
+            new_customers_past_30_days: parseInt(customersResult.rows[0].new_customers_past_30_days) || 0
+        };
+
+        res.status(200).json(kpis);
+    } catch (error) {
+        console.error('Error executing query for KPIs', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// NEW: Endpoint to get sales data aggregated by day for the last 30 days.
+/**
+ * @route   GET /api/recent-sales
+ * @desc    Get sales data for the last 30 days for charting
+ * @access  Public
+ */
+app.get('/api/recent-sales', async (req: Request, res: Response) => {
+    console.log("Received request for /api/recent-sales");
+    try {
+        const salesQuery = `
+            SELECT 
+                DATE(created_at) as date, 
+                SUM(total_price::numeric) as daily_sales
+            FROM orders
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC;
+        `;
+        const result = await pool.query(salesQuery);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error executing query for recent sales', error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });

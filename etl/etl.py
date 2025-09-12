@@ -46,17 +46,43 @@ def get_db_connection():
     """
     Establishes a connection to the PostgreSQL database.
     """
+    print(f"Attempting to connect to database at {DB_HOST}:{DB_PORT}")
+    print(f"Database: {DB_NAME}, User: {DB_USER}")
+    
     try:
         conn = psycopg2.connect(
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASSWORD,
             host=DB_HOST,
-            port=DB_PORT
+            port=DB_PORT,
+            connect_timeout=30,  # 30 second timeout
+            sslmode='require'  # Supabase requires SSL
         )
+        print("Database connection successful!")
         return conn
     except psycopg2.OperationalError as e:
         print(f"Error connecting to the database: {e}")
+        print("Troubleshooting tips:")
+        print("1. Check if your internet connection is working")
+        print("2. Verify the Supabase project is still active")
+        print("3. Check if the database credentials are correct")
+        print("4. Try connecting from Supabase dashboard to verify the database is running")
+        print("5. Check if IPv6 connectivity is working on your system")
+        
+        # Try alternative connection method
+        print("\nTrying alternative connection method...")
+        try:
+            # Try using connection URI format
+            connection_uri = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+            conn = psycopg2.connect(connection_uri)
+            print("Database connection successful using URI format!")
+            return conn
+        except psycopg2.OperationalError as e2:
+            print(f"Alternative connection method also failed: {e2}")
+            return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return None
 
 def insert_products_into_db(products):

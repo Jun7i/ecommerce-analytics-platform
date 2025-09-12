@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
+// We need to import the charting components from recharts
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// --- Type Definition ---
-// It's a best practice in TypeScript to define the "shape" of your data.
-// This helps prevent bugs and improves autocompletion.
+// --- Type Definitions ---
+// We keep the Product types, and add new ones for our new data.
+
 interface ProductVariant {
   id: number;
   title: string;
   price: string;
-  sku: string | null;
-  inventory_quantity: number;
 }
 
 interface Product {
@@ -16,119 +16,141 @@ interface Product {
   title: string;
   vendor: string;
   status: string;
-  product_type: string;
-  variants: ProductVariant[];
-  created_at: string; // Storing as string, will format for display
+}
+
+// NEW: Type for the KPI data from /api/kpis
+interface KpiData {
+  total_sales: number;
+  total_orders: number;
+  new_customers_past_30_days: number;
+}
+
+// NEW: Type for the sales chart data from /api/recent-sales
+interface SalesData {
+  date: string;
+  daily_sales: number;
 }
 
 
 // --- Main App Component ---
 function App() {
-  // State to hold the list of products fetched from the API
+  // --- State Management ---
+  // We add new state variables for our new data.
   const [products, setProducts] = useState<Product[]>([]);
-  // State to handle loading status while fetching data
+  const [kpis, setKpis] = useState<KpiData | null>(null);
+  const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // State to store any potential errors during the fetch
   const [error, setError] = useState<string | null>(null);
 
-  // useEffect hook to fetch data when the component mounts
+  // --- Data Fetching Effect ---
   useEffect(() => {
-    const fetchProducts = async () => {
+    // This function is now updated to fetch ALL data in parallel.
+    const fetchData = async () => {
       try {
-        // Fetch data from your backend API endpoint
-        const response = await fetch('http://localhost:8080/api/products');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // Use the environment variable for production, fallback to localhost for development
+        const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+        
+        // Using Promise.all is more efficient as it fetches all data at the same time.
+        const [productsRes, kpisRes, salesRes] = await Promise.all([
+            fetch(`${API_URL}/api/products`),
+            fetch(`${API_URL}/api/kpis`),
+            fetch(`${API_URL}/api/recent-sales`)
+        ]);
+
+        if (!productsRes.ok || !kpisRes.ok || !salesRes.ok) {
+            throw new Error(`HTTP error! A request failed. Please check the backend console.`);
         }
-        const data: Product[] = await response.json();
-        setProducts(data);
+
+        const productsData = await productsRes.json();
+        const kpisData = await kpisRes.json();
+        const salesDataRaw = await salesRes.json();
+        
+        // We format the sales data slightly for better chart display
+        const formattedSales = salesDataRaw.map((d: any) => ({
+            date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            daily_sales: parseFloat(d.daily_sales)
+        }));
+
+        setProducts(productsData);
+        setKpis(kpisData);
+        setSalesData(formattedSales);
+
       } catch (e) {
-        if (e instanceof Error) {
-            setError(e.message);
-        } else {
-            setError("An unknown error occurred.");
-        }
+        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+        console.error("Failed to fetch data:", errorMessage);
+        setError(errorMessage);
       } finally {
-        // Set loading to false once the fetch is complete (either success or fail)
         setIsLoading(false);
       }
     };
 
-    fetchProducts();
-  }, []); // The empty dependency array [] means this effect runs only once
+    fetchData();
+  }, []); // Empty dependency array means this runs once on mount
 
+  
   // --- Render Logic ---
+  // The render logic is now expanded to include the new UI components.
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
-        <p className="text-xl animate-pulse">Loading Dashboard...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-red-400 p-4">
-        <h2 className="text-2xl font-bold mb-4">Failed to load data</h2>
-        <p className="bg-red-900 p-4 rounded-md text-center">
-            Error: {error}<br/><br/>
-            Please ensure your backend server is running on `http://localhost:8080` and the database is connected.
-        </p>
-      </div>
-    );
-  }
+  if (isLoading) { /* ... same as your current code ... */ }
+  if (error) { /* ... same as your current code ... */ }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-white tracking-tight">E-commerce Analytics Dashboard</h1>
-          <p className="text-gray-400 mt-2">Real-time product data synced from Shopify.</p>
+          <p className="text-gray-400 mt-2">Real-time business intelligence.</p>
         </header>
-
-        {/* Main Content: Products Table */}
-        <main className="bg-gray-800 shadow-2xl rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-700/50">
-                <tr>
-                  <th className="p-4 font-semibold text-sm tracking-wider">Product Name</th>
-                  <th className="p-4 font-semibold text-sm tracking-wider">Vendor</th>
-                  <th className="p-4 font-semibold text-sm tracking-wider">Status</th>
-                  <th className="p-4 font-semibold text-sm tracking-wider text-right">Price</th>
-                  <th className="p-4 font-semibold text-sm tracking-wider text-right">Inventory</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-700/50 transition-colors duration-200">
-                    <td className="p-4 whitespace-nowrap">
-                        <div className="font-medium text-white">{product.title}</div>
-                        <div className="text-xs text-gray-400">{product.product_type || 'N/A'}</div>
-                    </td>
-                    <td className="p-4 text-gray-300 whitespace-nowrap">{product.vendor}</td>
-                    <td className="p-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        product.status.toLowerCase() === 'active' 
-                        ? 'bg-green-500/20 text-green-300' 
-                        : 'bg-yellow-500/20 text-yellow-300'
-                      }`}>
-                        {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right text-gray-300 whitespace-nowrap">${product.variants[0]?.price || '0.00'}</td>
-                    <td className="p-4 text-right text-white font-medium whitespace-nowrap">{product.variants[0]?.inventory_quantity || 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        
+        {/* NEW: KPI Cards Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 className="text-gray-400 text-sm font-medium">Total Revenue</h3>
+            <p className="text-3xl font-bold text-white mt-2">${kpis?.total_sales.toLocaleString() || '0'}</p>
           </div>
-        </main>
+          <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 className="text-gray-400 text-sm font-medium">Total Orders</h3>
+            <p className="text-3xl font-bold text-white mt-2">{kpis?.total_orders.toLocaleString() || '0'}</p>
+          </div>
+          <div className="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 className="text-gray-400 text-sm font-medium">New Customers (30d)</h3>
+            <p className="text-3xl font-bold text-white mt-2">{kpis?.new_customers_past_30_days.toLocaleString() || '0'}</p>
+          </div>
+        </div>
+
+        {/* NEW: Sales Chart and Products Table Side-by-Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 className="font-semibold text-white mb-4">Recent Sales Trend</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1}/>
+                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} />
+                <YAxis stroke="#9ca3af" fontSize={12} />
+                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none' }}/>
+                <Legend />
+                <Bar dataKey="daily_sales" fill="#3b82f6" name="Sales ($)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="lg:col-span-1 bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 className="font-semibold text-white mb-4">Product Status</h3>
+            {/* This could be a list or another simple chart later */}
+            <ul className="space-y-3 mt-4">
+              {products.slice(0, 5).map(p => (
+                 <li key={p.id} className="flex justify-between items-center text-sm">
+                   <span className="text-gray-300">{p.title}</span>
+                   <span className={`px-2 py-1 text-xs font-semibold rounded-full ${p.status.toLowerCase() === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{p.status}</span>
+                 </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 export default App;
+
