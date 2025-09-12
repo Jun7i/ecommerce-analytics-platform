@@ -180,13 +180,12 @@ app.get('/api/recent-sales', async (req: Request, res: Response) => {
 // --- Start Server ---
 const PORT = process.env.PORT || 8080;
 
+// For local development only
 if (process.env.NODE_ENV !== 'production') {
-    // For local development
     app.listen(PORT, () => {
         console.log(`Server is running on http://localhost:${PORT}`);
     });
 }
 
-// For Vercel deployment - both CommonJS and ES module exports
-module.exports = app;
-module.exports.default = app;
+// Export for Vercel
+export default app;

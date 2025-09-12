@@ -3,25 +3,13 @@
   "builds": [
     {
       "src": "backend/src/server.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["backend/src/**", "backend/.env"]
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/src/server.ts"
-    },
-    {
       "src": "/(.*)",
       "dest": "backend/src/server.ts"
     }
-  ],
-  "functions": {
-    "backend/src/server.ts": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }

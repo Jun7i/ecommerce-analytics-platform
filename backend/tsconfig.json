@@ -1,16 +1,17 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "lib": ["es2020"],
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "node",
+    "lib": ["es2022"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
     "types": ["node"]
   },
