@@ -60,8 +60,10 @@ app.get('/api/kpis', async (req: Request, res: Response) => {
             AND table_name IN ('orders', 'customers');
         `;
         
+        console.log("Checking for tables existence...");
         const tablesResult = await pool.query(checkTablesQuery);
         const existingTables = tablesResult.rows.map(row => row.table_name);
+        console.log("Found tables:", existingTables);
         
         let kpis = {
             total_sales: 0,
@@ -71,6 +73,7 @@ app.get('/api/kpis', async (req: Request, res: Response) => {
 
         // Only query tables that exist
         if (existingTables.includes('orders')) {
+            console.log("Querying orders table for sales and order count...");
             const totalSalesQuery = `SELECT SUM(total_price::numeric) AS total_sales FROM orders;`;
             const totalOrdersQuery = `SELECT COUNT(*) AS total_orders FROM orders;`;
 
@@ -79,16 +82,26 @@ app.get('/api/kpis', async (req: Request, res: Response) => {
                 pool.query(totalOrdersQuery)
             ]);
             
+            console.log("Sales query result:", salesResult.rows[0]);
+            console.log("Orders count result:", ordersResult.rows[0]);
+            
             kpis.total_sales = parseFloat(salesResult.rows[0].total_sales) || 0;
             kpis.total_orders = parseInt(ordersResult.rows[0].total_orders) || 0;
+        } else {
+            console.log("Orders table not found!");
         }
 
         if (existingTables.includes('customers')) {
+            console.log("Querying customers table for new customers...");
             const newCustomersQuery = `SELECT COUNT(*) AS new_customers_past_30_days FROM customers WHERE created_at >= NOW() - INTERVAL '30 days';`;
             const customersResult = await pool.query(newCustomersQuery);
+            console.log("New customers result:", customersResult.rows[0]);
             kpis.new_customers_past_30_days = parseInt(customersResult.rows[0].new_customers_past_30_days) || 0;
+        } else {
+            console.log("Customers table not found!");
         }
 
+        console.log("Final KPIs:", kpis);
         res.status(200).json(kpis);
     } catch (error) {
         console.error('Error executing query for KPIs', error);
