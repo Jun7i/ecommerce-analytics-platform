@@ -4,13 +4,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
-
 // Load environment variables
 dotenv.config();
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 8080;
 
 // --- Middleware ---
 app.use(cors());
@@ -26,6 +24,32 @@ const pool = new Pool({
 });
 
 // --- API Routes ---
+
+/**
+ * @route   GET /
+ * @desc    Health check endpoint
+ * @access  Public
+ */
+app.get('/', (req: Request, res: Response) => {
+    res.status(200).json({ 
+        message: "E-commerce Analytics API is running!",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+/**
+ * @route   GET /api/health
+ * @desc    API health check
+ * @access  Public
+ */
+app.get('/api/health', (req: Request, res: Response) => {
+    res.status(200).json({ 
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        database_host: process.env.DB_HOST || 'not configured'
+    });
+});
 
 /**
  * @route   GET /api/products
@@ -154,6 +178,15 @@ app.get('/api/recent-sales', async (req: Request, res: Response) => {
 
 
 // --- Start Server ---
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 8080;
+
+if (process.env.NODE_ENV !== 'production') {
+    // For local development
+    app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}`);
+    });
+}
+
+// For Vercel deployment - both CommonJS and ES module exports
+module.exports = app;
+module.exports.default = app;
