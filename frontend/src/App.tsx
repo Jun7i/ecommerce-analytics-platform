@@ -5,11 +5,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 // --- Type Definitions ---
 // We keep the Product types, and add new ones for our new data.
 
-interface ProductVariant {
-  id: number;
-  title: string;
-  price: string;
-}
 
 interface Product {
   id: number;
