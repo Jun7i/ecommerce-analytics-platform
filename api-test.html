@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #1f2937;
+            color: white;
+        }
+        .api-section { 
+            margin-bottom: 30px; 
+            padding: 20px; 
+            border: 1px solid #374151;
+            border-radius: 8px;
+            background-color: #374151;
+        }
+        .api-result { 
+            background-color: #111827; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        button { 
+            background-color: #3b82f6; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { 
+            background-color: #2563eb; 
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #4b5563;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Test Dashboard</h1>
+    
+    <div class="api-section">
+        <h2>Products API</h2>
+        <button onclick="testProducts()">Test /api/products</button>
+        <div id="products-result" class="api-result"></div>
+        <div id="products-table"></div>
+    </div>
+    
+    <div class="api-section">
+        <h2>KPIs API</h2>
+        <button onclick="testKpis()">Test /api/kpis</button>
+        <div id="kpis-result" class="api-result"></div>
+    </div>
+    
+    <div class="api-section">
+        <h2>Recent Sales API</h2>
+        <button onclick="testSales()">Test /api/recent-sales</button>
+        <div id="sales-result" class="api-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080';
+
+        async function testProducts() {
+            try {
+                console.log('Testing products API...');
+                const response = await fetch(`${API_BASE_URL}/api/products`);
+                const data = await response.json();
+                
+                document.getElementById('products-result').textContent = JSON.stringify(data, null, 2);
+                
+                // Create table
+                let tableHtml = '<table><tr><th>ID</th><th>Title</th><th>Vendor</th><th>Status</th></tr>';
+                data.forEach(product => {
+                    tableHtml += `<tr><td>${product.id}</td><td>${product.title}</td><td>${product.vendor}</td><td>${product.status}</td></tr>`;
+                });
+                tableHtml += '</table>';
+                document.getElementById('products-table').innerHTML = tableHtml;
+                
+            } catch (error) {
+                document.getElementById('products-result').textContent = 'Error: ' + error.message;
+                console.error('Products API error:', error);
+            }
+        }
+
+        async function testKpis() {
+            try {
+                console.log('Testing KPIs API...');
+                const response = await fetch(`${API_BASE_URL}/api/kpis`);
+                const data = await response.json();
+                document.getElementById('kpis-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('kpis-result').textContent = 'Error: ' + error.message;
+                console.error('KPIs API error:', error);
+            }
+        }
+
+        async function testSales() {
+            try {
+                console.log('Testing Sales API...');
+                const response = await fetch(`${API_BASE_URL}/api/recent-sales`);
+                const data = await response.json();
+                document.getElementById('sales-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('sales-result').textContent = 'Error: ' + error.message;
+                console.error('Sales API error:', error);
+            }
+        }
+
+        // Test all APIs on page load
+        window.onload = function() {
+            console.log('Testing all APIs...');
+            testProducts();
+            testKpis();
+            testSales();
+        };
+    </script>
+</body>
+</html>

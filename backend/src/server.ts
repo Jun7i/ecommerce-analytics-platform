@@ -52,22 +52,42 @@ app.get('/api/products', async (req: Request, res: Response) => {
 app.get('/api/kpis', async (req: Request, res: Response) => {
     console.log("Received request for /api/kpis");
     try {
-        const totalSalesQuery = `SELECT SUM(total_price::numeric) AS total_sales FROM orders;`;
-        const totalOrdersQuery = `SELECT COUNT(*) AS total_orders FROM orders;`;
-        const newCustomersQuery = `SELECT COUNT(*) AS new_customers_past_30_days FROM customers WHERE created_at >= NOW() - INTERVAL '30 days';`;
-
-        // Execute all queries in parallel for efficiency
-        const [salesResult, ordersResult, customersResult] = await Promise.all([
-            pool.query(totalSalesQuery),
-            pool.query(totalOrdersQuery),
-            pool.query(newCustomersQuery)
-        ]);
+        // Check if orders and customers tables exist
+        const checkTablesQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('orders', 'customers');
+        `;
         
-        const kpis = {
-            total_sales: parseFloat(salesResult.rows[0].total_sales) || 0,
-            total_orders: parseInt(ordersResult.rows[0].total_orders) || 0,
-            new_customers_past_30_days: parseInt(customersResult.rows[0].new_customers_past_30_days) || 0
+        const tablesResult = await pool.query(checkTablesQuery);
+        const existingTables = tablesResult.rows.map(row => row.table_name);
+        
+        let kpis = {
+            total_sales: 0,
+            total_orders: 0,
+            new_customers_past_30_days: 0
         };
+
+        // Only query tables that exist
+        if (existingTables.includes('orders')) {
+            const totalSalesQuery = `SELECT SUM(total_price::numeric) AS total_sales FROM orders;`;
+            const totalOrdersQuery = `SELECT COUNT(*) AS total_orders FROM orders;`;
+
+            const [salesResult, ordersResult] = await Promise.all([
+                pool.query(totalSalesQuery),
+                pool.query(totalOrdersQuery)
+            ]);
+            
+            kpis.total_sales = parseFloat(salesResult.rows[0].total_sales) || 0;
+            kpis.total_orders = parseInt(ordersResult.rows[0].total_orders) || 0;
+        }
+
+        if (existingTables.includes('customers')) {
+            const newCustomersQuery = `SELECT COUNT(*) AS new_customers_past_30_days FROM customers WHERE created_at >= NOW() - INTERVAL '30 days';`;
+            const customersResult = await pool.query(newCustomersQuery);
+            kpis.new_customers_past_30_days = parseInt(customersResult.rows[0].new_customers_past_30_days) || 0;
+        }
 
         res.status(200).json(kpis);
     } catch (error) {
@@ -85,6 +105,23 @@ app.get('/api/kpis', async (req: Request, res: Response) => {
 app.get('/api/recent-sales', async (req: Request, res: Response) => {
     console.log("Received request for /api/recent-sales");
     try {
+        // Check if orders table exists
+        const checkTableQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'orders';
+        `;
+        
+        const tableResult = await pool.query(checkTableQuery);
+        
+        if (tableResult.rows.length === 0) {
+            // Orders table doesn't exist, return empty array
+            console.log("Orders table doesn't exist, returning empty sales data");
+            res.status(200).json([]);
+            return;
+        }
+
         const salesQuery = `
             SELECT 
                 DATE(created_at) as date, 
