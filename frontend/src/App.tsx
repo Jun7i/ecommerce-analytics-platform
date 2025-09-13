@@ -1,4 +1,3 @@
-import React from 'react';
 import BasicLayout from './layouts/BasicLayout';
 import DashboardPage from './pages/DashboardPage';
 // Import Ant Design styles

@@ -5,9 +5,7 @@ import {
   ArrowDownOutlined, 
   DollarOutlined,
   ShoppingCartOutlined,
-  UserOutlined,
-  ShopOutlined 
-} from '@ant-design/icons';
+  UserOutlined} from '@ant-design/icons';
 import { Column, Pie } from '@ant-design/plots';
 import { apiService, type Product, type KPIData, type SalesData, type Customer, type Order } from '../services/api';
 
@@ -65,8 +63,8 @@ const DashboardPage: React.FC = () => {
   const [kpiData, setKpiData] = useState<KPIData | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [salesData, setSalesData] = useState<SalesData[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [, setCustomers] = useState<Customer[]>([]);
+  const [, setOrders] = useState<Order[]>([]);
 
   // Fetch data on component mount
   useEffect(() => {
