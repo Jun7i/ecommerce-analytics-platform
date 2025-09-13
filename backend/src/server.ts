@@ -59,7 +59,8 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.get('/api/products', async (req: Request, res: Response) => {
     console.log("Received request for /api/products");
     try {
-        const result = await pool.query('SELECT id, title, vendor, status FROM products ORDER BY created_at DESC');
+        const result = await pool.query(
+            'SELECT id, title, vendor, product_type, handle, tags,status FROM products ORDER BY created_at DESC');
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error executing query for products', error);
@@ -172,6 +173,118 @@ app.get('/api/recent-sales', async (req: Request, res: Response) => {
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error executing query for recent sales', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+/**
+ * @route   GET /api/customers
+ * @desc    Get all customers from the database
+ * @access  Public
+ */
+app.get('/api/customers', async (req: Request, res: Response) => {
+    console.log("Received request for /api/customers");
+    try {
+        // Check if customers table exists
+        const checkTableQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'customers';
+        `;
+        
+        const tableResult = await pool.query(checkTableQuery);
+        
+        if (tableResult.rows.length === 0) {
+            console.log("Customers table doesn't exist, returning empty array");
+            res.status(200).json([]);
+            return;
+        }
+
+        const customersQuery = `
+            SELECT 
+                id, 
+                first_name, 
+                last_name, 
+                email,
+                COALESCE(total_spent::numeric, 0) as total_spent,
+                COALESCE(orders_count, 0) as orders_count,
+                created_at
+            FROM customers 
+            ORDER BY created_at DESC 
+            LIMIT 100;
+        `;
+        
+        const result = await pool.query(customersQuery);
+        console.log(`Found ${result.rows.length} customers`);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error executing query for customers', error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+/**
+ * @route   GET /api/orders
+ * @desc    Get all orders from the database
+ * @access  Public
+ */
+app.get('/api/orders', async (req: Request, res: Response) => {
+    console.log("Received request for /api/orders");
+    try {
+        // Check if orders table exists
+        const checkTableQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'orders';
+        `;
+        
+        const tableResult = await pool.query(checkTableQuery);
+        
+        if (tableResult.rows.length === 0) {
+            console.log("Orders table doesn't exist, returning empty array");
+            res.status(200).json([]);
+            return;
+        }
+
+        const ordersQuery = `
+            SELECT 
+                o.id,
+                o.total_price::numeric as total_price,
+                o.created_at,
+                o.financial_status,
+                o.fulfillment_status,
+                o.number_of_items,
+                c.first_name,
+                c.last_name
+            FROM orders o
+            LEFT JOIN customers c ON o.customer_id = c.id
+            ORDER BY o.created_at DESC 
+            LIMIT 100;
+        `;
+        
+        const result = await pool.query(ordersQuery);
+        
+        // Format the response to match frontend expectations
+        const formattedOrders = result.rows.map(row => ({
+            id: row.id,
+            order_number: `#${row.id}`, // Generate order number from ID since no order_number column exists
+            total_price: parseFloat(row.total_price) || 0,
+            created_at: row.created_at,
+            customer: {
+                first_name: row.first_name || 'Unknown',
+                last_name: row.last_name || 'Customer'
+            },
+            financial_status: row.financial_status || 'pending',
+            fulfillment_status: row.fulfillment_status || 'unfulfilled',
+            number_of_items: row.number_of_items || 0
+        }));
+        
+        console.log(`Found ${formattedOrders.length} orders`);
+        res.status(200).json(formattedOrders);
+    } catch (error) {
+        console.error('Error executing query for orders', error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });

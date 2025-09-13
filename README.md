@@ -10,7 +10,7 @@ A full-stack application for syncing and displaying Shopify product data with re
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
+- Node.js (v22 or higher)
 - Python 3.8+
 - PostgreSQL database
 - Shopify store with API access
